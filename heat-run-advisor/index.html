@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Heat Run Advisor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .fade-in { animation: fadeIn 0.35s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-white text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen p-4 md:p-8">
+  <div class="max-w-xl mx-auto">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4 mb-6">
+      <div>
+        <h1 class="text-2xl md:text-3xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">Heat Run Advisor</h1>
+
+      </div>
+      <!-- Unit toggle -->
+      <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
+        <button id="btnF" onclick="setUnit('F')"
+                class="px-3 py-1.5 text-sm font-semibold rounded-lg transition">
+          °F
+        </button>
+        <button id="btnC" onclick="setUnit('C')"
+                class="px-3 py-1.5 text-sm font-semibold rounded-lg transition">
+          °C
+        </button>
+      </div>
+    </div>
+
+    <!-- Location / Weather Status -->
+    <div id="statusCard" class="bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl p-4 mb-5 shadow-sm">
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Weather Source</div>
+          <div id="locationStatus" class="text-sm text-slate-700 dark:text-slate-300 font-medium truncate">Requesting location…</div>
+          <div id="placeDisplay" class="text-xs text-slate-600 dark:text-slate-400 mt-0.5 hidden font-medium"></div>
+          <div id="coordsDisplay" class="text-xs text-slate-500 mt-0.5 hidden"></div>
+
+        </div>
+        <button id="refreshBtn" onclick="loadWeather()"
+                class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                disabled>
+          Refresh
+        </button>
+      </div>
+
+      <div id="sunTimes" class="mt-3 grid grid-cols-2 gap-3 text-xs hidden">
+        <div class="bg-white dark:bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-700">
+          <div class="text-slate-500 mb-0.5">Sunrise</div>
+          <div id="sunrise" class="font-medium">—</div>
+        </div>
+        <div class="bg-white dark:bg-slate-800/60 rounded-lg px-3 py-2 border border-slate-100 dark:border-slate-700">
+          <div class="text-slate-500 mb-0.5">Sunset</div>
+          <div id="sunset" class="font-medium">—</div>
+        </div>
+      </div>
+      <div id="weatherMeta" class="mt-2 text-xs text-slate-500 hidden"></div>
+    </div>
+
+    <!-- Input Card -->
+    <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-4 shadow-sm">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">
+            Air Temp (<span id="tempUnitLabel">°F</span>)
+          </label>
+          <input id="temp" type="number" step="0.1" value="85"
+                 class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/60 focus:border-amber-500 transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Humidity (%)</label>
+          <input id="hum" type="number" step="1" min="0" max="100" value="60"
+                 class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/60 focus:border-amber-500 transition" />
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Distance (mi)</label>
+          <input id="dist" type="number" step="0.1" min="0" value="5"
+                 class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/60 focus:border-amber-500 transition" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5">Target Pace (min/mi)</label>
+          <input id="pace" type="text" inputmode="decimal" value="9:00" placeholder="9:30 or 9.5"
+                 class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-amber-500/60 focus:border-amber-500 transition" />
+          <div class="text-[10px] text-slate-400 mt-1">Format: 9:30 or 9.5</div>
+        </div>
+      </div>
+
+      <button onclick="advise()"
+              class="w-full bg-amber-500 hover:bg-amber-400 active:bg-amber-300 text-slate-900 font-semibold py-3 rounded-lg transition shadow-md shadow-amber-500/20">
+        Calculate Advice
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="out" class="mt-5 hidden">
+      <div class="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-5 space-y-5 shadow-sm fade-in">
+
+        <!-- Metrics grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div class="bg-white dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+            <div class="text-xs text-slate-500 mb-1">Heat Index</div>
+            <div id="hiValue" class="text-lg font-bold text-amber-600 dark:text-amber-300">—</div>
+            <div id="hiRisk" class="mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+            <div class="text-xs text-slate-500 mb-1">WBGT</div>
+            <div id="wbgtValue" class="text-lg font-bold text-sky-600 dark:text-sky-300">—</div>
+            <div id="wbgtRisk" class="mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+            <div class="text-xs text-slate-500 mb-1">UV Index</div>
+            <div id="uvValue" class="text-lg font-bold text-violet-600 dark:text-violet-300">—</div>
+            <div id="uvRisk" class="mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block"></div>
+          </div>
+          <div class="bg-white dark:bg-slate-800/50 rounded-lg p-3 border border-slate-100 dark:border-slate-700">
+            <div class="text-xs text-slate-500 mb-1">Rec. Pace</div>
+            <div id="recPaceDisplay" class="text-lg font-bold text-amber-600 dark:text-amber-300">—</div>
+            <div id="recPaceDelta" class="mt-1.5 text-[11px] text-slate-500"></div>
+          </div>
+        </div>
+
+        <div class="text-xs text-slate-500 -mt-2">
+          WBGT is a stronger predictor of heat stress for outdoor exercise than Heat Index. UV is independent of temperature. Recommended pace adjusts your target for current conditions.
+        </div>
+
+        <!-- Full scale legends -->
+        <div class="border border-slate-200 dark:border-slate-700 rounded-lg p-4 text-xs space-y-4 bg-white dark:bg-slate-800/40">
+          <div>
+            <div class="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">Heat Index (NWS, °F)</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-slate-600 dark:text-slate-400">
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600 mr-1.5"></span>< 80°F — Caution (fatigue possible)</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-lime-600 mr-1.5"></span>80–89°F — Caution</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>90–102°F — Extreme Caution</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-600 mr-1.5"></span>103–124°F — Danger</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-red-600 mr-1.5"></span>≥ 125°F — Extreme Danger</div>
+            </div>
+            <p class="mt-1.5 text-slate-500">Feels-like temperature in the shade. Full sun can add up to ~15°F. Prolonged activity raises risk of cramps, exhaustion, or stroke.</p>
+          </div>
+
+          <div>
+            <div class="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">WBGT (ACSM athletic guidelines, °C)</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-slate-600 dark:text-slate-400">
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600 mr-1.5"></span>< 18°C — Low / Green Flag</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-lime-600 mr-1.5"></span>18–22.9°C — Moderate / Yellow</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>23–27.9°C — High / Red Flag</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-600 mr-1.5"></span>28–32.2°C — Very High / limit intensity</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-red-600 mr-1.5"></span>≥ 32.3°C — Extreme / cancel outdoor hard efforts</div>
+            </div>
+            <p class="mt-1.5 text-slate-500">Best single metric for outdoor exercise. Combines temperature, humidity, and (in true instruments) solar load & wind. Our value is an approximation from air temp + humidity only.</p>
+          </div>
+
+          <div>
+            <div class="font-semibold text-slate-700 dark:text-slate-200 mb-1.5">UV Index (WHO / EPA)</div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-slate-600 dark:text-slate-400">
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-600 mr-1.5"></span>0–2 — Low</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-lime-600 mr-1.5"></span>3–5 — Moderate</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5"></span>6–7 — High</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-orange-600 mr-1.5"></span>8–10 — Very High</div>
+              <div><span class="inline-block w-2.5 h-2.5 rounded-full bg-red-600 mr-1.5"></span>11+ — Extreme</div>
+            </div>
+            <p class="mt-1.5 text-slate-500">Independent of heat. High UV causes sunburn and long-term skin damage even on cooler days. Use sunscreen, hat, and sunglasses at 6+.</p>
+          </div>
+        </div>
+
+        <div class="space-y-4 text-sm">
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Effort Guidance</div>
+            <div id="effort" class="leading-relaxed"></div>
+          </div>
+          <div>
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Hydration</div>
+            <div id="hydro"></div>
+          </div>
+          <div class="border-t border-slate-200 dark:border-slate-800 pt-3">
+            <div class="text-xs uppercase tracking-wider text-slate-500 mb-1">Notes</div>
+            <div id="tips" class="text-slate-600 dark:text-slate-400 leading-relaxed"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-xs text-slate-500 dark:text-slate-600 mt-8 text-center leading-relaxed">
+      Estimates only • Open-Meteo + browser geolocation<br>
+      WBGT uses the Australian Bureau of Meteorology approximation (temp + humidity only)<br>
+      Always prioritize how you feel over any calculator
+    </p>
+  </div>
+
+
+  <script>
+    // ---------- Unit state (internal storage always °F for consistency) ----------
+    let unit = localStorage.getItem('heatAdvisorUnit') || 'F'; // 'F' or 'C'
+    let lastTempF = 85;   // keep last known air temp in °F
+    let lastUv = null;
+
+    function fToC(f) { return (f - 32) * 5 / 9; }
+    function cToF(c) { return c * 9 / 5 + 32; }
+
+    function setUnit(u) {
+      if (u === unit) return;
+      // Convert current input value
+      const input = document.getElementById('temp');
+      const val = parseFloat(input.value);
+      if (!isNaN(val)) {
+        if (u === 'C') {
+          lastTempF = val;                 // was °F
+          input.value = Math.round(fToC(val) * 10) / 10;
+        } else {
+          lastTempF = cToF(val);           // was °C
+          input.value = Math.round(lastTempF * 10) / 10;
+        }
+      }
+      unit = u;
+      localStorage.setItem('heatAdvisorUnit', unit);
+      updateUnitUI();
+      advise(); // re-render with new unit
+    }
+
+    function updateUnitUI() {
+      document.getElementById('tempUnitLabel').textContent = unit === 'F' ? '°F' : '°C';
+      const btnF = document.getElementById('btnF');
+      const btnC = document.getElementById('btnC');
+      if (unit === 'F') {
+        btnF.className = 'px-3 py-1.5 text-sm font-semibold rounded-lg bg-amber-500 text-slate-900 transition';
+        btnC.className = 'px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+      } else {
+        btnC.className = 'px-3 py-1.5 text-sm font-semibold rounded-lg bg-amber-500 text-slate-900 transition';
+        btnF.className = 'px-3 py-1.5 text-sm font-semibold rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition';
+      }
+    }
+
+    // ---------- Heat Index (NWS Rothfusz, input always treated as °F) ----------
+    function heatIndex(T_f, R) {
+      if (T_f < 80) return Math.round(T_f * 10) / 10;
+      let HI = -42.379 + 2.04901523*T_f + 10.14333127*R
+             - 0.22475541*T_f*R - 0.00683783*T_f*T_f
+             - 0.05481717*R*R + 0.00122874*T_f*T_f*R
+             + 0.00085282*T_f*R*R - 0.00000199*T_f*T_f*R*R;
+      if (R < 13 && T_f >= 80 && T_f <= 112) {
+        HI -= ((13 - R) / 4) * Math.sqrt((17 - Math.abs(T_f - 95)) / 17);
+      } else if (R > 85 && T_f >= 80 && T_f <= 87) {
+        HI += ((R - 85) / 10) * ((87 - T_f) / 5);
+      }
+      return Math.round(HI);
+    }
+
+    // ---------- WBGT approximation (returns °C) ----------
+    function wbgtApprox(T_f, RH) {
+      const T = fToC(T_f);
+      const e = (RH / 100) * 6.105 * Math.exp(17.27 * T / (237.7 + T));
+      return Math.round((0.567 * T + 0.393 * e + 3.94) * 10) / 10;
+    }
+
+    // ---------- Risk helpers (aligned with scales shown in UI) ----------
+    function hiRiskLevel(hi_f) {
+      if (hi_f < 80)  return { cls: 'bg-emerald-600 text-white', label: 'Caution' };
+      if (hi_f < 90)  return { cls: 'bg-lime-600 text-white', label: 'Caution' };
+      if (hi_f < 103) return { cls: 'bg-amber-500 text-slate-900', label: 'Extreme Caution' };
+      if (hi_f < 125) return { cls: 'bg-orange-600 text-white', label: 'Danger' };
+      return               { cls: 'bg-red-600 text-white', label: 'Extreme Danger' };
+    }
+
+    function wbgtRiskLevel(w_c) {
+      if (w_c < 18)   return { cls: 'bg-emerald-600 text-white', label: 'Low' };
+      if (w_c < 23)   return { cls: 'bg-lime-600 text-white', label: 'Moderate' };
+      if (w_c < 28)   return { cls: 'bg-amber-500 text-slate-900', label: 'High' };
+      if (w_c < 32.3) return { cls: 'bg-orange-600 text-white', label: 'Very High' };
+      return                { cls: 'bg-red-600 text-white', label: 'Extreme' };
+    }
+
+    function uvRiskLevel(uv) {
+      if (uv == null) return { cls: 'bg-slate-400 text-white', label: '—' };
+      if (uv < 3)  return { cls: 'bg-emerald-600 text-white', label: 'Low' };
+      if (uv < 6)  return { cls: 'bg-lime-600 text-white', label: 'Moderate' };
+      if (uv < 8)  return { cls: 'bg-amber-500 text-slate-900', label: 'High' };
+      if (uv < 11) return { cls: 'bg-orange-600 text-white', label: 'Very High' };
+      return             { cls: 'bg-red-600 text-white', label: 'Extreme' };
+    }
+
+
+    function formatTemp(f) {
+      if (unit === 'C') return Math.round(fToC(f) * 10) / 10 + '°C';
+      return Math.round(f * 10) / 10 + '°F';
+    }
+
+    // ---------- Pace helpers (store/calculate in decimal minutes, display as m:ss) ----------
+    function parsePace(str) {
+      if (!str) return NaN;
+      str = String(str).trim();
+      if (str.includes(':')) {
+        const parts = str.split(':');
+        const min = parseInt(parts[0], 10) || 0;
+        const sec = parseInt(parts[1], 10) || 0;
+        return min + sec / 60;
+      }
+      return parseFloat(str);
+    }
+
+    function formatPace(decimalMin) {
+      if (isNaN(decimalMin) || decimalMin <= 0) return '—';
+      const totalSec = Math.round(decimalMin * 60);
+      const m = Math.floor(totalSec / 60);
+      const s = totalSec % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    // Recommended pace adjustment based on WBGT (primary), Heat Index, and UV.
+    // Derived from ACSM guidelines, coaching rules of thumb, and heat-performance literature:
+    // - Cool conditions: little to no slowdown
+    // - Rising WBGT/HI: progressive slowdown (roughly 5–15+ sec/mi per step)
+    // - UV adds minor extra load via solar radiation
+    function recommendedPaceAdjustment(WBGT, HI, UV) {
+      let addSec = 0; // seconds per mile to add
+
+      // Primary driver: WBGT (°C)
+      if (WBGT >= 32.3)      addSec += 90;
+      else if (WBGT >= 30)   addSec += 70;
+      else if (WBGT >= 28)   addSec += 55;
+      else if (WBGT >= 26)   addSec += 40;
+      else if (WBGT >= 24)   addSec += 30;
+      else if (WBGT >= 22)   addSec += 20;
+      else if (WBGT >= 20)   addSec += 12;
+      else if (WBGT >= 18)   addSec += 5;
+
+      // Secondary: Heat Index (°F) for extra humidity/heat load not fully captured
+      if (HI >= 110)      addSec += 25;
+      else if (HI >= 103) addSec += 15;
+      else if (HI >= 95)  addSec += 8;
+      else if (HI >= 90)  addSec += 4;
+
+      // Tertiary: high UV (solar load)
+      if (UV != null) {
+        if (UV >= 10)     addSec += 10;
+        else if (UV >= 8) addSec += 6;
+        else if (UV >= 6) addSec += 3;
+      }
+
+      return addSec; // seconds/mile
+    }
+
+    // ---------- Advice engine ----------
+    function advise() {
+      const raw = parseFloat(document.getElementById('temp').value);
+      const R = parseFloat(document.getElementById('hum').value) || 0;
+      const dist = parseFloat(document.getElementById('dist').value) || 0;
+      const targetPaceDec = parsePace(document.getElementById('pace').value);
+
+      // Convert input to °F for calculations
+      let T_f;
+      if (unit === 'C') {
+        T_f = isNaN(raw) ? lastTempF : cToF(raw);
+      } else {
+        T_f = isNaN(raw) ? lastTempF : raw;
+      }
+      lastTempF = T_f;
+
+      const HI = heatIndex(T_f, R);
+      const WBGT = wbgtApprox(T_f, R);
+      const UV = lastUv;
+
+      const hiR = hiRiskLevel(HI);
+      const wbR = wbgtRiskLevel(WBGT);
+      const uvR = uvRiskLevel(UV);
+
+      let effortAdj, hydro, tips;
+
+      if (WBGT >= 32.3 || HI >= 125) {
+        effortAdj = 'Skip outdoor quality work. Treadmill, pool, or full rest are the smart choices today.';
+        hydro = 'Focus on cooling and rehydration indoors. Do not force outdoor volume.';
+        tips = 'Extreme zone — heat stroke risk is high even for well-trained athletes. Respect the conditions.';
+      } else if (WBGT >= 28 || HI >= 103) {
+        effortAdj = 'Strongly prefer indoor treadmill or very easy effort only. If you go outdoors, cut volume 30–50 % and stay conversational the entire time.';
+        hydro = '28+ oz/hr + electrolytes. Ice bandana / cold towels help. Plan short loops that return to air-conditioning quickly.';
+        tips = 'Danger / Very High zone. Heat illness risk rises rapidly. Buddy system recommended.';
+      } else if (WBGT >= 23 || HI >= 90) {
+        effortAdj = 'Reduce intensity ~10–15 % or slow pace by 30–60 s/mi. Consider cutting total distance 15–25 %. Keep heart-rate well below threshold.';
+        hydro = '20–28 oz (≈600–800 ml) per hour + sodium. Pre-hydrate 12–16 oz in the hour before start.';
+        tips = 'High / Extreme Caution zone. Early morning or late evening preferred. Monitor for early heat-illness signs.';
+      } else {
+        effortAdj = 'You can run close to planned effort. Still keep a small buffer (≈10–20 s/mi) if humidity is rising or you are heat-naïve.';
+        hydro = '16–20 oz (≈500–600 ml) per hour. Add electrolytes for sessions longer than 60–75 min.';
+        tips = 'Low–Moderate zone. Standard summer precautions apply. Prefer shaded routes when possible.';
+      }
+
+      if (dist > 10 && (WBGT >= 24 || HI >= 95)) {
+        tips += ' Long efforts in high heat demand extra conservatism — consider splitting the run or moving part of it indoors.';
+      }
+
+      // UV notes
+      if (UV != null) {
+        if (UV >= 8) tips += ' UV is Very High/Extreme — use sunscreen, hat, and sunglasses even on short runs.';
+        else if (UV >= 6) tips += ' UV is High — sunscreen recommended for longer efforts.';
+      }
+
+      // Pace recommendation
+      const addSec = recommendedPaceAdjustment(WBGT, HI, UV);
+      const recPaceDec = isNaN(targetPaceDec) ? NaN : targetPaceDec + (addSec / 60);
+
+      document.getElementById('recPaceDisplay').textContent = formatPace(recPaceDec);
+      const deltaEl = document.getElementById('recPaceDelta');
+      if (!isNaN(targetPaceDec) && addSec > 0) {
+        deltaEl.textContent = `+${addSec} s/mi`;
+      } else if (!isNaN(targetPaceDec) && addSec === 0) {
+        deltaEl.textContent = 'No adj.';
+      } else {
+        deltaEl.textContent = '';
+      }
+
+      // Render values in selected unit
+      document.getElementById('hiValue').textContent = formatTemp(HI);
+      const hiRiskEl = document.getElementById('hiRisk');
+      hiRiskEl.className = `mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block ${hiR.cls}`;
+      hiRiskEl.textContent = hiR.label;
+
+      // WBGT is conventionally shown in °C; convert only for display consistency if user is in °F
+      if (unit === 'F') {
+        document.getElementById('wbgtValue').textContent = Math.round(cToF(WBGT) * 10) / 10 + '°F';
+      } else {
+        document.getElementById('wbgtValue').textContent = WBGT + '°C';
+      }
+      const wbRiskEl = document.getElementById('wbgtRisk');
+      wbRiskEl.className = `mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block ${wbR.cls}`;
+      wbRiskEl.textContent = wbR.label;
+
+      document.getElementById('uvValue').textContent = UV != null ? UV.toFixed(1) : '—';
+      const uvRiskEl = document.getElementById('uvRisk');
+      uvRiskEl.className = `mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block ${uvR.cls}`;
+      uvRiskEl.textContent = uvR.label;
+
+      document.getElementById('effort').textContent = effortAdj;
+      document.getElementById('hydro').textContent = hydro;
+      document.getElementById('tips').textContent = tips;
+
+      document.getElementById('out').classList.remove('hidden');
+    }
+
+    // ---------- Geolocation + Open-Meteo ----------
+    function setStatus(msg, isError = false) {
+      const el = document.getElementById('locationStatus');
+      el.textContent = msg;
+      el.className = `text-sm font-medium truncate ${isError ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`;
+    }
+
+    function setCoords(lat, lon) {
+      const el = document.getElementById('coordsDisplay');
+      el.textContent = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+      el.classList.remove('hidden');
+    }
+
+    async function setPlaceName(lat, lon) {
+      const el = document.getElementById('placeDisplay');
+      try {
+        // Prefer Nominatim (OpenStreetMap) for more precise suburb / locality names
+        const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&zoom=14`;
+        const res = await fetch(url, {
+          headers: { 'Accept': 'application/json', 'User-Agent': 'HeatRunAdvisor/1.0 (personal training tool)' }
+        });
+        if (!res.ok) throw new Error('Nominatim failed');
+        const data = await res.json();
+        const a = data.address || {};
+
+        // Most specific first: suburb / neighbourhood / village / town, then city
+        const specific = a.suburb || a.neighbourhood || a.village || a.hamlet || a.quarter || a.locality || a.city_district || '';
+        const city = a.city || a.town || a.municipality || a.county || '';
+        const state = a.state || a.region || '';
+
+        let label = '';
+        if (specific && city && specific.toLowerCase() !== city.toLowerCase()) {
+          label = `${specific}, ${city}`;
+          if (state) label += `, ${state}`;
+        } else if (specific) {
+          label = state ? `${specific}, ${state}` : specific;
+        } else if (city) {
+          label = state ? `${city}, ${state}` : city;
+        } else if (state) {
+          label = state;
+        } else if (data.display_name) {
+          // Fallback: first two parts of display_name
+          label = data.display_name.split(',').slice(0, 2).join(',').trim();
+        }
+
+        if (label) {
+          el.textContent = label;
+          el.classList.remove('hidden');
+        }
+      } catch (err) {
+        console.warn('Nominatim place lookup failed, trying fallback', err);
+        // Fallback to BigDataCloud
+        try {
+          const url2 = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`;
+          const res2 = await fetch(url2);
+          if (!res2.ok) throw new Error('fallback failed');
+          const data2 = await res2.json();
+          const loc = data2.locality || data2.city || '';
+          const st = data2.principalSubdivision || '';
+          const label = loc && st ? `${loc}, ${st}` : (loc || st || data2.countryName || '');
+          if (label) {
+            el.textContent = label;
+            el.classList.remove('hidden');
+          }
+        } catch (e2) {
+          console.warn('Place name lookup failed', e2);
+          el.classList.add('hidden');
+        }
+      }
+    }
+
+
+    function formatSunTime(iso) {
+      if (!iso) return '—';
+      return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    async function fetchWeather(lat, lon) {
+      // Request current temp, humidity, UV + daily sunrise/sunset
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+                  `&current=temperature_2m,relative_humidity_2m,uv_index` +
+                  `&daily=sunrise,sunset` +
+                  `&temperature_unit=fahrenheit&timezone=auto`;
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Weather API ${res.status}`);
+      const data = await res.json();
+
+      const tempF = data.current.temperature_2m;
+      const hum   = data.current.relative_humidity_2m;
+      lastUv      = data.current.uv_index ?? null;
+      const time  = data.current.time;
+
+      lastTempF = tempF;
+
+      // Display in current unit
+      if (unit === 'C') {
+        document.getElementById('temp').value = Math.round(fToC(tempF) * 10) / 10;
+      } else {
+        document.getElementById('temp').value = Math.round(tempF * 10) / 10;
+      }
+      document.getElementById('hum').value = Math.round(hum);
+
+      if (data.daily?.sunrise && data.daily?.sunset) {
+        document.getElementById('sunrise').textContent = formatSunTime(data.daily.sunrise[0]);
+        document.getElementById('sunset').textContent  = formatSunTime(data.daily.sunset[0]);
+        document.getElementById('sunTimes').classList.remove('hidden');
+      }
+
+      const meta = document.getElementById('weatherMeta');
+      meta.textContent = `Updated ${new Date(time).toLocaleString()} • Open-Meteo`;
+      meta.classList.remove('hidden');
+
+      setStatus('Live weather loaded');
+      document.getElementById('refreshBtn').disabled = false;
+      advise();
+    }
+
+    function loadWeather() {
+      document.getElementById('refreshBtn').disabled = true;
+      setStatus('Getting location…');
+      document.getElementById('coordsDisplay').classList.add('hidden');
+      document.getElementById('placeDisplay').classList.add('hidden');
+      document.getElementById('weatherMeta').classList.add('hidden');
+      document.getElementById('sunTimes').classList.add('hidden');
+
+
+      if (!navigator.geolocation) {
+        setStatus('Geolocation not supported by this browser', true);
+        document.getElementById('refreshBtn').disabled = false;
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude: lat, longitude: lon } = pos.coords;
+          setCoords(lat, lon);
+          setPlaceName(lat, lon); // fire-and-forget city/state
+          setStatus('Fetching weather…');
+          try {
+            await fetchWeather(lat, lon);
+          } catch (err) {
+            console.error(err);
+            setStatus('Weather fetch failed – enter values manually', true);
+            document.getElementById('refreshBtn').disabled = false;
+          }
+        },
+
+        (err) => {
+          let msg = 'Location permission denied';
+          if (err.code === 1) msg = 'Location permission denied – enter values manually';
+          else if (err.code === 2) msg = 'Position unavailable';
+          else if (err.code === 3) msg = 'Location request timed out';
+          setStatus(msg, true);
+          document.getElementById('refreshBtn').disabled = false;
+        },
+        { enableHighAccuracy: false, timeout: 12000, maximumAge: 10 * 60 * 1000 }
+      );
+    }
+
+    // Normalize pace input to m:ss on blur
+    document.getElementById('pace').addEventListener('blur', function() {
+      const dec = parsePace(this.value);
+      if (!isNaN(dec) && dec > 0) {
+        this.value = formatPace(dec);
+      }
+    });
+
+    // Init
+    updateUnitUI();
+    loadWeather();
+  </script>
+
+</body>
+</html>
