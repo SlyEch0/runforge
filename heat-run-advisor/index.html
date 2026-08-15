@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Heat Run Advisor</title>
+  <title>Heat Run Advisor — Pace Kit</title>
+  <meta name="description" content="Location-aware Heat Index, WBGT, UV Index and recommended pace adjustments for outdoor running in the heat." />
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
@@ -17,8 +18,8 @@
     <!-- Header -->
     <div class="flex items-start justify-between gap-4 mb-6">
       <div>
+        <a href="../" class="text-xs text-slate-500 hover:text-amber-600 transition mb-1 inline-block">← Pace Kit</a>
         <h1 class="text-2xl md:text-3xl font-bold text-amber-600 dark:text-amber-400 tracking-tight">Heat Run Advisor</h1>
-
       </div>
       <!-- Unit toggle -->
       <div class="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 rounded-xl p-1 border border-slate-200 dark:border-slate-700">
@@ -41,9 +42,8 @@
           <div id="locationStatus" class="text-sm text-slate-700 dark:text-slate-300 font-medium truncate">Requesting location…</div>
           <div id="placeDisplay" class="text-xs text-slate-600 dark:text-slate-400 mt-0.5 hidden font-medium"></div>
           <div id="coordsDisplay" class="text-xs text-slate-500 mt-0.5 hidden"></div>
-
         </div>
-        <button id="refreshBtn" onclick="loadWeather()"
+        <button id="refreshBtn" onclick="loadWeather(true)"
                 class="shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-600 transition disabled:opacity-40 disabled:cursor-not-allowed"
                 disabled>
           Refresh
@@ -61,6 +61,11 @@
         </div>
       </div>
       <div id="weatherMeta" class="mt-2 text-xs text-slate-500 hidden"></div>
+
+      <!-- Helpful tip when location is denied / failed -->
+      <div id="locationHelp" class="mt-3 text-xs text-slate-500 dark:text-slate-400 leading-relaxed hidden">
+        Tip: Allow location in your browser settings for precise weather, or just enter temperature & humidity manually below.
+      </div>
     </div>
 
     <!-- Input Card -->
@@ -201,6 +206,7 @@
     let unit = localStorage.getItem('heatAdvisorUnit') || 'F'; // 'F' or 'C'
     let lastTempF = 85;   // keep last known air temp in °F
     let lastUv = null;
+    let lastCoords = null; // {lat, lon, source: 'precise'|'approx'}
 
     function fToC(f) { return (f - 32) * 5 / 9; }
     function cToF(c) { return c * 9 / 5 + 32; }
@@ -314,10 +320,6 @@
     }
 
     // Recommended pace adjustment based on WBGT (primary), Heat Index, and UV.
-    // Derived from ACSM guidelines, coaching rules of thumb, and heat-performance literature:
-    // - Cool conditions: little to no slowdown
-    // - Rising WBGT/HI: progressive slowdown (roughly 5–15+ sec/mi per step)
-    // - UV adds minor extra load via solar radiation
     function recommendedPaceAdjustment(WBGT, HI, UV) {
       let addSec = 0; // seconds per mile to add
 
@@ -331,7 +333,7 @@
       else if (WBGT >= 20)   addSec += 12;
       else if (WBGT >= 18)   addSec += 5;
 
-      // Secondary: Heat Index (°F) for extra humidity/heat load not fully captured
+      // Secondary: Heat Index (°F)
       if (HI >= 110)      addSec += 25;
       else if (HI >= 103) addSec += 15;
       else if (HI >= 95)  addSec += 8;
@@ -450,10 +452,18 @@
       el.className = `text-sm font-medium truncate ${isError ? 'text-red-500' : 'text-slate-700 dark:text-slate-300'}`;
     }
 
-    function setCoords(lat, lon) {
+    function showHelp(show) {
+      const el = document.getElementById('locationHelp');
+      if (show) el.classList.remove('hidden');
+      else el.classList.add('hidden');
+    }
+
+    function setCoords(lat, lon, source = 'precise') {
       const el = document.getElementById('coordsDisplay');
-      el.textContent = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°`;
+      const label = source === 'approx' ? 'approx' : '';
+      el.textContent = `${lat.toFixed(4)}°, ${lon.toFixed(4)}°${label ? ' (' + label + ')' : ''}`;
       el.classList.remove('hidden');
+      lastCoords = { lat, lon, source };
     }
 
     async function setPlaceName(lat, lon) {
@@ -462,7 +472,7 @@
         // Prefer Nominatim (OpenStreetMap) for more precise suburb / locality names
         const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1&zoom=14`;
         const res = await fetch(url, {
-          headers: { 'Accept': 'application/json', 'User-Agent': 'HeatRunAdvisor/1.0 (personal training tool)' }
+          headers: { 'Accept': 'application/json', 'User-Agent': 'PaceKit-HeatRunAdvisor/1.0 (https://pacekit.net)' }
         });
         if (!res.ok) throw new Error('Nominatim failed');
         const data = await res.json();
@@ -520,7 +530,7 @@
       return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    async function fetchWeather(lat, lon) {
+    async function fetchWeather(lat, lon, source = 'precise') {
       // Request current temp, humidity, UV + daily sunrise/sunset
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
                   `&current=temperature_2m,relative_humidity_2m,uv_index` +
@@ -553,53 +563,122 @@
       }
 
       const meta = document.getElementById('weatherMeta');
-      meta.textContent = `Updated ${new Date(time).toLocaleString()} • Open-Meteo`;
+      const sourceLabel = source === 'approx' ? 'Approximate location (IP)' : 'Precise location';
+      meta.textContent = `Updated ${new Date(time).toLocaleString()} • Open-Meteo • ${sourceLabel}`;
       meta.classList.remove('hidden');
 
-      setStatus('Live weather loaded');
+      setStatus(source === 'approx' ? 'Approximate weather loaded' : 'Live weather loaded');
+      showHelp(false);
       document.getElementById('refreshBtn').disabled = false;
       advise();
     }
 
-    function loadWeather() {
+    // IP-based approximate location fallback
+    async function getApproxLocation() {
+      // Prefer geojs (simple, CORS-friendly, no key)
+      try {
+        const res = await fetch('https://get.geojs.io/v1/ip/geo.json');
+        if (!res.ok) throw new Error('geojs failed');
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          return {
+            lat: parseFloat(data.latitude),
+            lon: parseFloat(data.longitude),
+            city: data.city || data.region || ''
+          };
+        }
+      } catch (e) {
+        console.warn('geojs failed', e);
+      }
+
+      // Fallback: ipapi.co
+      try {
+        const res = await fetch('https://ipapi.co/json/');
+        if (!res.ok) throw new Error('ipapi failed');
+        const data = await res.json();
+        if (data.latitude && data.longitude) {
+          return {
+            lat: data.latitude,
+            lon: data.longitude,
+            city: data.city || data.region || ''
+          };
+        }
+      } catch (e) {
+        console.warn('ipapi failed', e);
+      }
+
+      throw new Error('Could not determine approximate location');
+    }
+
+    async function tryApproxFallback() {
+      setStatus('Trying approximate location…');
+      showHelp(false);
+      try {
+        const approx = await getApproxLocation();
+        setCoords(approx.lat, approx.lon, 'approx');
+        if (approx.city) {
+          const el = document.getElementById('placeDisplay');
+          el.textContent = approx.city + ' (approx)';
+          el.classList.remove('hidden');
+        } else {
+          setPlaceName(approx.lat, approx.lon);
+        }
+        setStatus('Fetching weather (approx)…');
+        await fetchWeather(approx.lat, approx.lon, 'approx');
+      } catch (err) {
+        console.error(err);
+        setStatus('Location unavailable – enter values manually', true);
+        showHelp(true);
+        document.getElementById('refreshBtn').disabled = false;
+      }
+    }
+
+    function loadWeather(forcePrecise = false) {
       document.getElementById('refreshBtn').disabled = true;
       setStatus('Getting location…');
       document.getElementById('coordsDisplay').classList.add('hidden');
       document.getElementById('placeDisplay').classList.add('hidden');
       document.getElementById('weatherMeta').classList.add('hidden');
       document.getElementById('sunTimes').classList.add('hidden');
-
+      showHelp(false);
 
       if (!navigator.geolocation) {
-        setStatus('Geolocation not supported by this browser', true);
-        document.getElementById('refreshBtn').disabled = false;
+        setStatus('Geolocation not supported – trying approximate…');
+        tryApproxFallback();
         return;
       }
 
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude: lat, longitude: lon } = pos.coords;
-          setCoords(lat, lon);
-          setPlaceName(lat, lon); // fire-and-forget city/state
+          setCoords(lat, lon, 'precise');
+          setPlaceName(lat, lon); // fire-and-forget
           setStatus('Fetching weather…');
           try {
-            await fetchWeather(lat, lon);
+            await fetchWeather(lat, lon, 'precise');
           } catch (err) {
             console.error(err);
             setStatus('Weather fetch failed – enter values manually', true);
+            showHelp(true);
             document.getElementById('refreshBtn').disabled = false;
           }
         },
 
         (err) => {
-          let msg = 'Location permission denied';
-          if (err.code === 1) msg = 'Location permission denied – enter values manually';
-          else if (err.code === 2) msg = 'Position unavailable';
-          else if (err.code === 3) msg = 'Location request timed out';
-          setStatus(msg, true);
-          document.getElementById('refreshBtn').disabled = false;
+          console.warn('Geolocation error', err.code, err.message);
+          // Permission denied or other failure → try approximate automatically
+          if (err.code === 1) {
+            setStatus('Precise location denied – trying approximate…');
+          } else if (err.code === 2) {
+            setStatus('Position unavailable – trying approximate…');
+          } else if (err.code === 3) {
+            setStatus('Location timed out – trying approximate…');
+          } else {
+            setStatus('Location failed – trying approximate…');
+          }
+          tryApproxFallback();
         },
-        { enableHighAccuracy: false, timeout: 12000, maximumAge: 10 * 60 * 1000 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 5 * 60 * 1000 }
       );
     }
 
