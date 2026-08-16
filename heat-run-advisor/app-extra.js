@@ -341,5 +341,6 @@ function renderChart(labels, datasets, useRight=false) {
 document.getElementById('pace').addEventListener('blur',function(){const dec=parsePace(this.value);if(!isNaN(dec)&&dec>0)this.value=formatPace(dec);});
 (function setDefaultWhen(){const now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());document.getElementById('whenInput').value=now.toISOString().slice(0,16);})();
 updateUnitUI();
-if (typeof syncDurationHint === 'function') syncDurationHint();
+if (typeof setPlanMode === 'function') setPlanMode();
+else if (typeof syncDurationHint === 'function') syncDurationHint();
 useMyLocation();
