@@ -133,3 +133,24 @@ function scoreWindow(avgWbgt, maxWbgt, avgUv) {
   else if (maxWbgt >= 23) s += 8;
   return s;
 }
+
+function syncDurationHint() {
+  const hint = document.getElementById('durationHint');
+  if (!hint) return;
+  const durEl = document.getElementById('duration');
+  const filled = parseFloat(durEl && durEl.value);
+  if (!isNaN(filled) && filled > 0) {
+    hint.textContent = 'Using your duration · fuel & windows use this value';
+    return;
+  }
+  const dist = parseFloat(document.getElementById('dist').value) || 0;
+  const pace = parsePace(document.getElementById('pace').value);
+  if (dist > 0 && !isNaN(pace) && pace > 0) {
+    const mins = Math.round(dist * pace);
+    const h = Math.floor(mins / 60), m = mins % 60;
+    const pretty = h > 0 ? (h + 'h ' + m + 'm') : (mins + ' min');
+    hint.textContent = 'Auto ≈ ' + pretty + ' from distance × pace';
+  } else {
+    hint.textContent = 'Leave blank → uses distance × pace';
+  }
+}
