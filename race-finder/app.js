@@ -13,6 +13,9 @@ const DIST_BANDS = {
   ultra: { loMi: 30, hiMi: 999, label: 'Ultra' }
 };
 
+// Bands used when Distance = Any (merged + deduped so longer races are not buried)
+const ANY_BANDS = ['5k', '10k', 'half', 'marathon', 'ultra'];
+
 function todayISO() {
   const d = new Date();
   const y = d.getFullYear();
@@ -200,6 +203,24 @@ function stripHtml(html) {
   return (tmp.textContent || tmp.innerText || '').replace(/\s+/g, ' ').trim();
 }
 
+function dedupeRaces(list) {
+  const byId = new Map();
+  for (const r of list) {
+    if (!r) continue;
+    const idKey = r.raceId ? 'id:' + r.raceId : r.key;
+    const prev = byId.get(idKey);
+    if (!prev) {
+      byId.set(idKey, r);
+      continue;
+    }
+    // Prefer the copy that already has event distances filled in
+    if ((!prev.events || !prev.events.length) && r.events && r.events.length) {
+      byId.set(idKey, r);
+    }
+  }
+  return Array.from(byId.values()).sort((a, b) => (a.dateIso || '9999').localeCompare(b.dateIso || '9999'));
+}
+
 async function fetchRsuList(params) {
   const q = new URLSearchParams({ format: 'json', results_per_page: String(params.pageSize || 40) });
   if (params.state) q.set('state', params.state);
@@ -219,6 +240,26 @@ async function fetchRsuList(params) {
   }
   const data = await fetchRsuJson('races?' + q.toString());
   return (data.races || []).map(x => normalizeFromRsu(x.race || x));
+}
+
+/** When Distance=Any: parallel queries per band + one open query, then dedupe. */
+async function fetchRsuMergedAny(baseParams) {
+  const pageSize = Math.min(20, Math.max(12, Math.floor((baseParams.pageSize || 40) / 2)));
+  const jobs = [
+    // Unfiltered slice (catches odd distances / multi-event races)
+    fetchRsuList({ ...baseParams, band: null, pageSize: pageSize }).catch(e => {
+      console.warn('any-open failed', e);
+      return [];
+    }),
+    ...ANY_BANDS.map(band =>
+      fetchRsuList({ ...baseParams, band, pageSize: pageSize }).catch(e => {
+        console.warn('band ' + band + ' failed', e);
+        return [];
+      })
+    )
+  ];
+  const chunks = await Promise.all(jobs);
+  return dedupeRaces(chunks.flat());
 }
 
 async function enrichRsu(race) {
@@ -412,7 +453,9 @@ async function searchRaces() {
   const btn = document.getElementById('searchBtn');
   btn.disabled = true;
   btn.classList.add('opacity-60');
-  setStatus('Searching RunSignUp…');
+  setStatus(band === 'any'
+    ? 'Searching across distance bands (5K → ultra)…'
+    : 'Searching RunSignUp…');
   document.getElementById('results').innerHTML = '';
 
   const params = { zip, radius, city, state, start, end, band, pageSize: Math.max(maxResults, 40) };
@@ -421,7 +464,11 @@ async function searchRaces() {
     let rsu = [];
     let rsuErr = null;
     try {
-      rsu = await fetchRsuList(params);
+      if (band === 'any') {
+        rsu = await fetchRsuMergedAny(params);
+      } else {
+        rsu = await fetchRsuList(params);
+      }
     } catch (e) {
       rsuErr = e;
       console.warn(e);
@@ -438,10 +485,11 @@ async function searchRaces() {
       return;
     }
 
-    setStatus('Found ' + rsu.length + ' on RunSignUp' + (rf.length ? ', ' + rf.length + ' on RaceFinder' : '') + '. Loading details…');
+    setStatus('Found ' + rsu.length + ' unique on RunSignUp' + (rf.length ? ', ' + rf.length + ' on RaceFinder' : '') + '. Loading details…');
 
     let merged = mergePreferRsu(rsu, rf);
-    const need = merged.filter(r => r.source === 'runsignup' && !r.events.length).slice(0, maxResults);
+    // Cap enrichment work; prefer soonest races first (already date-sorted)
+    const need = merged.filter(r => r.source === 'runsignup' && !r.events.length).slice(0, Math.max(maxResults, 30));
     if (need.length) {
       const enriched = await mapPool(need, 4, enrichRsu);
       const map = new Map(enriched.map(r => [r.id, r]));
@@ -495,7 +543,11 @@ async function searchRaces() {
       return raceCard(r, w);
     }).join('');
 
-    setStatus(merged.length + ' race' + (merged.length === 1 ? '' : 's') + ' · RunSignUp · weather when within ~16 days');
+    setStatus(
+      merged.length + ' race' + (merged.length === 1 ? '' : 's') +
+      (band === 'any' ? ' · merged across distances' : '') +
+      ' · RunSignUp · weather when within ~16 days'
+    );
   } catch (err) {
     console.error(err);
     setStatus('Search failed: ' + (err.message || 'unknown error'), true);
