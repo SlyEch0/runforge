@@ -80,9 +80,25 @@ function recommendedPaceAdjustment(WBGT, HI, UV) {
   if (UV != null) { if (UV >= 10) s += 10; else if (UV >= 8) s += 6; else if (UV >= 6) s += 3; }
   return s;
 }
+function getPlanMode() {
+  const el = document.getElementById('planMode');
+  return el ? el.value : 'distance';
+}
+function setPlanMode() {
+  const mode = getPlanMode();
+  const distBox = document.getElementById('modeDistance');
+  const durBox = document.getElementById('modeDuration');
+  if (distBox) distBox.classList.toggle('hidden', mode !== 'distance');
+  if (durBox) durBox.classList.toggle('hidden', mode !== 'duration');
+  if (typeof syncDurationHint === 'function') syncDurationHint();
+}
 function getDurationMin() {
-  const d = parseFloat(document.getElementById('duration').value);
-  if (!isNaN(d) && d > 0) return d;
+  const mode = getPlanMode();
+  if (mode === 'duration') {
+    const d = parseFloat(document.getElementById('duration').value);
+    if (!isNaN(d) && d > 0) return d;
+    return 60;
+  }
   const dist = parseFloat(document.getElementById('dist').value) || 0;
   const pace = parsePace(document.getElementById('pace').value);
   if (dist > 0 && !isNaN(pace) && pace > 0) return dist * pace;
@@ -137,10 +153,8 @@ function scoreWindow(avgWbgt, maxWbgt, avgUv) {
 function syncDurationHint() {
   const hint = document.getElementById('durationHint');
   if (!hint) return;
-  const durEl = document.getElementById('duration');
-  const filled = parseFloat(durEl && durEl.value);
-  if (!isNaN(filled) && filled > 0) {
-    hint.textContent = 'Using your duration · fuel & windows use this value';
+  if (getPlanMode() === 'duration') {
+    hint.textContent = 'Fuel & windows use this time';
     return;
   }
   const dist = parseFloat(document.getElementById('dist').value) || 0;
@@ -149,8 +163,8 @@ function syncDurationHint() {
     const mins = Math.round(dist * pace);
     const h = Math.floor(mins / 60), m = mins % 60;
     const pretty = h > 0 ? (h + 'h ' + m + 'm') : (mins + ' min');
-    hint.textContent = 'Auto ≈ ' + pretty + ' from distance × pace';
+    hint.textContent = 'Duration auto ≈ ' + pretty;
   } else {
-    hint.textContent = 'Leave blank → uses distance × pace';
+    hint.textContent = 'Duration auto from distance × pace';
   }
 }
