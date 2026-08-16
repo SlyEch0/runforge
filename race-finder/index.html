@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Race Finder — Pace Kit</title>
+  <meta name="description" content="Find upcoming races near you with distances, registration links, and race-day weather forecasts." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            night: { 950: '#0a0f1a', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+            cyan: { 400: '#22d3ee', 500: '#06b6d4' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="bg-night-950 text-slate-100 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="hidden md:flex w-56 flex-col border-r border-slate-800/80 bg-night-900/60 px-4 py-6 shrink-0">
+      <div class="flex items-center gap-2.5 mb-10 px-2">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+        </div>
+        <a href="../" class="font-semibold tracking-tight text-slate-100 hover:text-cyan-300 transition">Pace Kit</a>
+      </div>
+      <nav class="space-y-1 flex-1">
+        <a href="../" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Hub</a>
+        <a href="../heat-run-advisor/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Heat Run Advisor</a>
+        <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg bg-slate-800/80 text-cyan-400 text-sm font-medium">Race Finder</a>
+      </nav>
+      <div class="mt-auto pt-6 border-t border-slate-800/80 space-y-1 text-xs text-slate-500">
+        <a href="../about.html" class="block px-3 py-1.5 hover:text-slate-300 transition">About</a>
+        <a href="../privacy.html" class="block px-3 py-1.5 hover:text-slate-300 transition">Privacy</a>
+        <a href="https://github.com/SlyEch0/runforge" class="block px-3 py-1.5 hover:text-slate-300 transition">GitHub</a>
+      </div>
+    </aside>
+
+    <main class="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-3xl">
+      <div class="md:hidden flex items-center justify-between mb-6">
+        <a href="../" class="flex items-center gap-2 text-sm text-slate-400 hover:text-cyan-300 transition">← Pace Kit</a>
+      </div>
+
+      <div class="mb-6">
+        <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-50">Race Finder</h1>
+        <p class="mt-1 text-sm text-slate-400">Upcoming races by location &amp; date · RunSignUp data · race-day forecast</p>
+      </div>
+
+      <div class="bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4 mb-5">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">ZIP (US)</label>
+            <input id="zip" type="text" inputmode="numeric" maxlength="5" value="77407" placeholder="77407" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Radius (mi)</label>
+            <select id="radius" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="150">150</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">City <span class="text-slate-600">(optional)</span></label>
+            <input id="city" type="text" placeholder="Richmond" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">State</label>
+            <input id="state" type="text" maxlength="2" value="TX" placeholder="TX" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm uppercase focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">From</label>
+            <input id="startDate" type="date" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">To</label>
+            <input id="endDate" type="date" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Distance</label>
+            <select id="distance" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition">
+              <option value="any" selected>Any</option>
+              <option value="5k">5K</option>
+              <option value="10k">10K</option>
+              <option value="half">Half marathon</option>
+              <option value="marathon">Marathon</option>
+              <option value="ultra">Ultra (50K+)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Max results</label>
+            <select id="maxResults" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40 transition">
+              <option value="15">15</option>
+              <option value="25" selected>25</option>
+              <option value="40">40</option>
+            </select>
+          </div>
+        </div>
+        <button id="searchBtn" onclick="searchRaces()" class="w-full bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-3 rounded-lg transition">Find races</button>
+        <div id="status" class="text-sm text-slate-400">Set location &amp; dates, then search.</div>
+      </div>
+
+      <div id="results" class="space-y-3"></div>
+
+      <p class="text-xs text-slate-600 mt-10 text-center leading-relaxed">
+        Race data via RunSignUp · Weather via Open-Meteo<br>
+        Forecast only available within ~16 days of race day
+      </p>
+    </main>
+  </div>
+  <script src="./app.js"></script>
+</body>
+</html>
