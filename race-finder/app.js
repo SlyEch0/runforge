@@ -1,5 +1,8 @@
 // Race Finder — Pace Kit
-const RSU_BASE = 'https://api.runsignup.com/rest';
+// Same-origin CF Pages Functions proxy for RunSignUp (no flaky CORS proxies)
+const RSU_LIST = '/api/rsu/races';
+const RSU_RACE = '/api/rsu/race/';
+const RSU_DIRECT = 'https://api.runsignup.com/rest';
 const RF_BASE = 'https://api.racefinder.net/api/v1';
 
 const DIST_BANDS = {
@@ -12,12 +15,18 @@ const DIST_BANDS = {
 
 function todayISO() {
   const d = new Date();
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 function addDaysISO(n) {
   const d = new Date();
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return y + '-' + m + '-' + day;
 }
 function setDefaults() {
   document.getElementById('startDate').value = todayISO();
@@ -29,19 +38,27 @@ function setStatus(msg, isError) {
   el.className = 'text-sm ' + (isError ? 'text-red-400' : 'text-slate-400');
 }
 
-/** Fetch JSON; try direct then allorigins proxy (CORS). */
 async function fetchJson(url) {
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) throw new Error('HTTP ' + res.status + ' for ' + url);
+  return await res.json();
+}
+
+/** Prefer same-origin proxy; fall back to direct (may fail CORS in browser). */
+async function fetchRsuJson(pathAndQuery) {
   try {
-    const res = await fetch(url, { headers: { Accept: 'application/json' } });
-    if (res.ok) {
-      const ct = res.headers.get('content-type') || '';
-      if (ct.includes('json') || ct.includes('text')) return await res.json();
+    if (pathAndQuery.startsWith('race/')) {
+      const rest = pathAndQuery.slice('race/'.length);
+      return await fetchJson(RSU_RACE + rest);
     }
-  } catch (_) { /* CORS or network */ }
-  const proxied = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-  const res2 = await fetch(proxied);
-  if (!res2.ok) throw new Error('Fetch failed ' + res2.status);
-  return await res2.json();
+    if (pathAndQuery.startsWith('races')) {
+      const q = pathAndQuery.includes('?') ? pathAndQuery.slice(pathAndQuery.indexOf('?')) : '';
+      return await fetchJson(RSU_LIST + q);
+    }
+  } catch (e) {
+    console.warn('proxy failed', e);
+  }
+  return await fetchJson(RSU_DIRECT + '/' + pathAndQuery);
 }
 
 function parseDistanceToMiles(str) {
@@ -76,8 +93,7 @@ function parseRsuDate(s) {
   const part = String(s).split(' ')[0];
   const p = part.split('/');
   if (p.length !== 3) return null;
-  const iso = p[2] + '-' + p[0].padStart(2, '0') + '-' + p[1].padStart(2, '0');
-  return iso;
+  return p[2] + '-' + p[0].padStart(2, '0') + '-' + p[1].padStart(2, '0');
 }
 
 function normalizeKey(name, dateIso, city) {
@@ -170,10 +186,12 @@ function stripHtml(html) {
 async function fetchRsuList(params) {
   const q = new URLSearchParams({ format: 'json', results_per_page: String(params.pageSize || 40) });
   if (params.state) q.set('state', params.state);
-  if (params.city) q.set('city', params.city);
+  // Prefer ZIP radius over city — combining both often returns zero on RSU
   if (params.zip) {
     q.set('zipcode', params.zip);
     q.set('radius', String(params.radius || 50));
+  } else if (params.city) {
+    q.set('city', params.city);
   }
   if (params.start) q.set('start_date', params.start);
   if (params.end) q.set('end_date', params.end);
@@ -183,15 +201,14 @@ async function fetchRsuList(params) {
     q.set('min_distance', String(b.loMi));
     if (b.hiMi < 900) q.set('max_distance', String(b.hiMi));
   }
-  const url = RSU_BASE + '/races?' + q.toString();
-  const data = await fetchJson(url);
+  const data = await fetchRsuJson('races?' + q.toString());
   return (data.races || []).map(x => normalizeFromRsu(x.race || x));
 }
 
 async function enrichRsu(race) {
   if (!race.raceId) return race;
   try {
-    const data = await fetchJson(RSU_BASE + '/race/' + race.raceId + '?format=json');
+    const data = await fetchRsuJson('race/' + race.raceId + '?format=json');
     const full = data.race || data;
     return normalizeFromRsu(full);
   } catch {
@@ -236,7 +253,7 @@ function mergePreferRsu(rsuList, rfList) {
     const prev = byId.get(idKey);
     if (!prev || (r.source === 'runsignup' && prev.source !== 'runsignup')) byId.set(idKey, r);
   }
-  return Array.from(byId.values()).sort((a, b) => (a.dateIso || '').localeCompare(b.dateIso || ''));
+  return Array.from(byId.values()).sort((a, b) => (a.dateIso || '9999').localeCompare(b.dateIso || '9999'));
 }
 
 async function geocodePlace(city, state, zip) {
@@ -251,10 +268,9 @@ async function geocodePlace(city, state, zip) {
       }
     } catch (_) {}
   }
-  const name = [city, state].filter(Boolean).join(' ');
-  if (!name) return null;
+  if (!city) return null;
   try {
-    const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city || name) + '&country=US&count=5';
+    const url = 'https://geocoding-api.open-meteo.com/v1/search?name=' + encodeURIComponent(city) + '&country=US&count=5';
     const data = await fetch(url).then(r => r.json());
     const results = data.results || [];
     let hit = results[0];
@@ -313,6 +329,15 @@ function weatherBadge(w) {
   return '<span class="text-[11px] text-sky-300/90">' + (sky ? sky + ' · ' : '') + bits.join(' · ') + '</span>';
 }
 
+function escapeHtml(s) {
+  return String(s || '')
+    .replace(/&/g, '&')
+    .replace(/</g, '<')
+    .replace(/>/g, '>')
+    .replace(/"/g, '"')
+    .replace(/'/g, '&#39;');
+}
+
 function raceCard(r, weather) {
   const loc = [r.city, r.state].filter(Boolean).join(', ') + (r.zip ? ' ' + r.zip : '');
   const dists = r.events.length
@@ -322,9 +347,10 @@ function raceCard(r, weather) {
     ? '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600/80 text-white">Registration open</span>'
     : '<span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-700 text-slate-300">Reg. closed / unknown</span>';
   const src = r.source === 'runsignup' ? 'RunSignUp' : 'RaceFinder';
-  const blurb = stripHtml(r.description).slice(0, 160);
+  const fullBlurb = stripHtml(r.description);
+  const blurb = fullBlurb.slice(0, 160);
   const link = r.url
-    ? '<a href="' + r.url + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">Register / details <span aria-hidden="true">→</span></a>'
+    ? '<a href="' + escapeHtml(r.url) + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">Register / details <span aria-hidden="true">→</span></a>'
     : '';
   return '<article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 fade-in space-y-2.5">' +
     '<div class="flex items-start justify-between gap-3">' +
@@ -339,16 +365,12 @@ function raceCard(r, weather) {
       '<span class="text-[10px] uppercase tracking-wider text-slate-500">Race-day wx</span>' +
       weatherBadge(weather) +
     '</div>' +
-    (blurb ? '<p class="text-xs text-slate-500 leading-relaxed">' + escapeHtml(blurb) + (stripHtml(r.description).length > 160 ? '…' : '') + '</p>' : '') +
+    (blurb ? '<p class="text-xs text-slate-500 leading-relaxed">' + escapeHtml(blurb) + (fullBlurb.length > 160 ? '…' : '') + '</p>' : '') +
     '<div class="flex items-center justify-between gap-2 pt-1">' +
       link +
       '<span class="text-[10px] text-slate-600">' + src + '</span>' +
     '</div>' +
   '</article>';
-}
-
-function escapeHtml(s) {
-  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&', '<': '<', '>': '>', '"': '"', "'": '&#39;' }[c]));
 }
 
 async function mapPool(items, limit, fn) {
@@ -385,14 +407,30 @@ async function searchRaces() {
   setStatus('Searching RunSignUp…');
   document.getElementById('results').innerHTML = '';
 
-  const params = { zip, radius, city, state, start, end, band, pageSize: Math.max(maxResults, 30) };
+  const params = { zip, radius, city, state, start, end, band, pageSize: Math.max(maxResults, 40) };
 
   try {
-    const [rsu, rf] = await Promise.all([
-      fetchRsuList(params).catch(e => { console.warn(e); return []; }),
-      fetchRacefinder(params)
-    ]);
-    setStatus('Found ' + rsu.length + ' on RunSignUp' + (rf.length ? ', ' + rf.length + ' on RaceFinder' : ' (RaceFinder unavailable)') + '. Enriching details…');
+    let rsu = [];
+    let rsuErr = null;
+    try {
+      rsu = await fetchRsuList(params);
+    } catch (e) {
+      rsuErr = e;
+      console.warn(e);
+    }
+    const rf = await fetchRacefinder(params);
+
+    if (!rsu.length && !rf.length) {
+      setStatus(
+        rsuErr
+          ? ('Could not reach race data (' + (rsuErr.message || 'network') + '). Try again in a moment.')
+          : 'No races matched. Try a larger radius, clear City, or widen dates.',
+        true
+      );
+      return;
+    }
+
+    setStatus('Found ' + rsu.length + ' on RunSignUp' + (rf.length ? ', ' + rf.length + ' on RaceFinder' : '') + '. Loading details…');
 
     let merged = mergePreferRsu(rsu, rf);
     const need = merged.filter(r => r.source === 'runsignup' && !r.events.length).slice(0, maxResults);
@@ -408,7 +446,7 @@ async function searchRaces() {
     merged = merged.slice(0, maxResults);
 
     if (!merged.length) {
-      setStatus('No races matched. Try a larger radius or wider dates.', true);
+      setStatus('API returned races but none in this date/distance window. Widen dates or set Distance to Any.', true);
       return;
     }
 
@@ -424,8 +462,7 @@ async function searchRaces() {
 
     const weatherByPlaceDate = new Map();
     for (const r of merged) {
-      const c = await coordsFor(r);
-      r._coords = c;
+      r._coords = await coordsFor(r);
     }
     const uniqueCoords = [];
     const seenC = new Set();
@@ -439,23 +476,20 @@ async function searchRaces() {
     for (const c of uniqueCoords.slice(0, 8)) {
       try {
         const daily = await fetchDailyWeather(c.lat, c.lon);
-        const pk = c.lat.toFixed(2) + ',' + c.lon.toFixed(2);
-        weatherByPlaceDate.set(pk, daily);
+        weatherByPlaceDate.set(c.lat.toFixed(2) + ',' + c.lon.toFixed(2), daily);
       } catch (e) { console.warn(e); }
     }
 
-    const box = document.getElementById('results');
-    box.innerHTML = merged.map(r => {
+    document.getElementById('results').innerHTML = merged.map(r => {
       let w = null;
       if (r._coords && r.dateIso) {
-        const pk = r._coords.lat.toFixed(2) + ',' + r._coords.lon.toFixed(2);
-        const daily = weatherByPlaceDate.get(pk);
+        const daily = weatherByPlaceDate.get(r._coords.lat.toFixed(2) + ',' + r._coords.lon.toFixed(2));
         if (daily) w = daily[r.dateIso] || null;
       }
       return raceCard(r, w);
     }).join('');
 
-    setStatus(merged.length + ' race' + (merged.length === 1 ? '' : 's') + ' · preferred RunSignUp · weather when within forecast window');
+    setStatus(merged.length + ' race' + (merged.length === 1 ? '' : 's') + ' · RunSignUp · weather when within ~16 days');
   } catch (err) {
     console.error(err);
     setStatus('Search failed: ' + (err.message || 'unknown error'), true);
