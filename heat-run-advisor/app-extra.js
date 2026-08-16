@@ -70,7 +70,14 @@ function advise() {
   const addSec = recommendedPaceAdjustment(WBGT, HI, UV);
   const recPaceDec = isNaN(targetPaceDec) ? NaN : targetPaceDec + (addSec / 60);
   document.getElementById('recPaceDisplay').textContent = formatPace(recPaceDec);
-  document.getElementById('recPaceDelta').textContent = !isNaN(targetPaceDec) ? (addSec > 0 ? '+'+addSec+' s/mi' : 'No adj.') : '';
+  if (!isNaN(targetPaceDec)) {
+    document.getElementById('recPaceDelta').textContent = addSec > 0
+      ? ('+' + addSec + ' s/mi vs ' + formatPace(targetPaceDec) + ' target')
+      : ('Same as target ' + formatPace(targetPaceDec));
+  } else {
+    document.getElementById('recPaceDelta').textContent = 'Enter a target pace above';
+  }
+  if (typeof syncDurationHint === 'function') syncDurationHint();
   document.getElementById('hiValue').textContent = formatTemp(HI);
   const hiRiskEl = document.getElementById('hiRisk'); hiRiskEl.className = 'mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full inline-block '+hiR.cls; hiRiskEl.textContent = hiR.label;
   document.getElementById('wbgtValue').textContent = unit === 'F' ? (Math.round(cToF(WBGT)*10)/10+'°F') : (WBGT+'°C');
@@ -334,4 +341,5 @@ function renderChart(labels, datasets, useRight=false) {
 document.getElementById('pace').addEventListener('blur',function(){const dec=parsePace(this.value);if(!isNaN(dec)&&dec>0)this.value=formatPace(dec);});
 (function setDefaultWhen(){const now=new Date();now.setMinutes(now.getMinutes()-now.getTimezoneOffset());document.getElementById('whenInput').value=now.toISOString().slice(0,16);})();
 updateUnitUI();
+if (typeof syncDurationHint === 'function') syncDurationHint();
 useMyLocation();
