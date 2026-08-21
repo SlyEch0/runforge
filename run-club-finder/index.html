@@ -23,6 +23,7 @@
     .fade-in { animation: fadeIn 0.25s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     #clubModal:not(.hidden) { display: flex; }
+    #placeSuggestBox:not(.hidden) { display: block; }
   </style>
 </head>
 <body class="bg-night-950 text-slate-100 min-h-screen">
@@ -113,20 +114,40 @@
         <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">
           Suggest a club and we’ll review it for the directory.
         </p>
-        <form id="suggestForm" class="mt-4 space-y-3" onsubmit="return submitClub(event)">
+        <form id="suggestForm" class="mt-4 space-y-3" onsubmit="return false;">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input id="sName" required placeholder="Club name" class="bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
-            <input id="sCity" required placeholder="City" class="bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+            <div>
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">Club name</label>
+              <input id="sName" required placeholder="e.g. Katy Area Running Club" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+            </div>
+            <div class="relative">
+              <label class="block text-xs font-medium text-slate-500 mb-1.5">City / State</label>
+              <input id="sCity" required placeholder="e.g. Katy, TX" autocomplete="off" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" list="placeDatalist" />
+              <datalist id="placeDatalist"></datalist>
+              <div id="placeSuggestBox" class="hidden absolute z-20 left-0 right-0 mt-1 max-h-48 overflow-y-auto rounded-lg border border-slate-700 bg-slate-900 shadow-xl"></div>
+            </div>
           </div>
-          <input id="sWebsite" type="url" placeholder="Website or Instagram URL" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
-          <input id="sDays" placeholder="Typical days (e.g. Tue, Sat)" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
-          <textarea id="sNotes" rows="2" placeholder="Short notes (meetup spot, vibe, free/paid…)" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"></textarea>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Website or Instagram <span class="text-slate-600 font-normal">(optional)</span></label>
+            <input id="sWebsite" type="text" inputmode="url" placeholder="pacekit.net or instagram.com/yourclub" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Typical days</label>
+            <input id="sDays" placeholder="e.g. Tue, Sat" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Notes</label>
+            <textarea id="sNotes" rows="2" placeholder="Meetup spot, vibe, free/paid…" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"></textarea>
+          </div>
           <div class="flex flex-col sm:flex-row gap-2">
-            <button type="submit" class="flex-1 bg-slate-100 hover:bg-white text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Open GitHub suggestion</button>
-            <a id="mailtoLink" href="#" class="flex-1 text-center border border-slate-700 hover:border-slate-500 text-slate-300 py-2.5 rounded-lg text-sm transition">Or email instead</a>
+            <button type="button" id="btnEmailSuggest" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Email suggestion</button>
+            <button type="button" id="btnGithubSuggest" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Open on GitHub</button>
           </div>
         </form>
-        <p class="mt-3 text-[11px] text-slate-600">Opens a pre-filled GitHub issue on the Pace Kit repo. No account required to view; GitHub login needed to post.</p>
+        <p class="mt-3 text-[11px] text-slate-500 leading-relaxed">
+          <strong class="text-slate-400">Email</strong> opens your mail app (no account needed).
+          <strong class="text-slate-400">GitHub</strong> needs a free GitHub login to post the issue.
+        </p>
       </div>
 
       <p class="text-xs text-slate-600 mt-8 text-center">
@@ -150,6 +171,7 @@
           <button type="button" id="btnSuggestUpdate" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Suggest update</button>
           <button type="button" id="btnReportIssue" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Report issue</button>
         </div>
+        <p class="text-[10px] text-slate-600">Opens GitHub (login required) with the listing pre-filled.</p>
       </div>
     </div>
   </div>
