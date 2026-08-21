@@ -1,0 +1,11 @@
+{
+  "name": "Pace Kit",
+  "short_name": "Pace Kit",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "theme_color": "#0a0f1a",
+  "background_color": "#0a0f1a",
+  "display": "standalone",
+  "start_url": "/"
+}
