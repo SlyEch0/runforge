@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#0a0f1a" />
+  <title>Contact — Pace Kit</title>
+  <meta name="description" content="Contact Pace Kit. Write hello@pacekit.net or send a message from this page." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            night: { 950: '#0a0f1a', 900: '#0f172a', 800: '#1e293b', 700: '#334155' },
+            cyan: { 400: '#22d3ee', 500: '#06b6d4' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    button:not(:disabled) { cursor: pointer; }
+  </style>
+</head>
+<body class="bg-night-950 text-slate-100 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="hidden md:flex w-56 flex-col border-r border-slate-800/80 bg-night-900/60 px-4 py-6 shrink-0">
+      <div class="flex items-center gap-2.5 mb-10 px-2">
+        <div class="w-8 h-8 rounded-lg bg-cyan-500/15 border border-cyan-500/30 flex items-center justify-center">
+          <svg class="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+        </div>
+        <a href="./" class="font-semibold tracking-tight text-slate-100 hover:text-cyan-300 transition">Pace Kit</a>
+      </div>
+      <nav class="space-y-1 flex-1">
+        <a href="./" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Hub</a>
+        <a href="./heat-run-advisor/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Heat Run Advisor</a>
+        <a href="./race-finder/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Race Finder</a>
+        <a href="./run-club-finder/" class="flex items-center gap-3 px-3 py-2 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 text-sm transition">Run Club Finder</a>
+      </nav>
+      <div class="mt-auto pt-6 border-t border-slate-800/80 space-y-1 text-xs text-slate-500">
+        <a href="./about.html" class="block px-3 py-1.5 hover:text-slate-300 transition">About</a>
+        <a href="./contact.html" class="block px-3 py-1.5 bg-slate-800/80 text-cyan-400 rounded-lg">Contact</a>
+        <a href="./privacy.html" class="block px-3 py-1.5 hover:text-slate-300 transition">Privacy</a>
+        <a href="https://github.com/SlyEch0/runforge" class="block px-3 py-1.5 hover:text-slate-300 transition">GitHub</a>
+      </div>
+    </aside>
+
+    <main class="flex-1 px-4 py-6 md:px-8 md:py-8 max-w-2xl">
+      <div class="md:hidden mb-6">
+        <a href="./" class="text-sm text-slate-400 hover:text-cyan-300 transition">← Pace Kit</a>
+      </div>
+      <h1 class="text-2xl md:text-3xl font-semibold tracking-tight text-slate-50">Contact</h1>
+      <p class="mt-2 text-sm text-slate-400 leading-relaxed">
+        Public inbox is <a class="text-cyan-400 hover:text-cyan-300" href="mailto:hello@pacekit.net">hello@pacekit.net</a>.
+        That address lives on this domain — a personal mailbox is never shown on the site.
+      </p>
+
+      <form id="contactForm" class="mt-8 bg-slate-900/70 border border-slate-800 rounded-2xl p-5 space-y-4" onsubmit="return false;">
+        <input id="hpField" class="hp-field" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5" for="cName">Name <span class="text-slate-600 font-normal">(optional)</span></label>
+          <input id="cName" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5" for="cEmail">Your email <span class="text-slate-600 font-normal">(optional, if you want a reply)</span></label>
+          <input id="cEmail" type="email" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-500 mb-1.5" for="cMsg">Message</label>
+          <textarea id="cMsg" required rows="6" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"></textarea>
+        </div>
+        <button id="cBtn" type="button" class="w-full bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-3 rounded-lg transition">Send message</button>
+        <p id="cStatus" class="text-sm text-slate-500">Or email hello@pacekit.net from your own mail app.</p>
+      </form>
+    </main>
+  </div>
+  <script>
+    const CONTACT_EMAIL = 'hello@pacekit.net';
+    function setNote(msg, kind) {
+      var el = document.getElementById('cStatus');
+      el.textContent = msg;
+      el.className = 'text-sm ' + (kind === 'error' ? 'text-red-400' : kind === 'ok' ? 'text-emerald-400' : 'text-slate-500');
+    }
+    document.getElementById('cBtn').addEventListener('click', async function () {
+      var name = document.getElementById('cName').value.trim();
+      var email = document.getElementById('cEmail').value.trim();
+      var msg = document.getElementById('cMsg').value.trim();
+      var hp = document.getElementById('hpField').value;
+      if (msg.length < 8) {
+        document.getElementById('cMsg').focus();
+        setNote('A short message is enough — eight characters minimum.', 'error');
+        return;
+      }
+      var title = 'Contact: ' + (name || 'Pace Kit visitor');
+      var body = '### Contact form\n\n**Name:** ' + (name || '(none)') + '\n**From:** ' + (email || '(none)') + '\n\n' + msg;
+      var btn = document.getElementById('cBtn');
+      btn.disabled = true;
+      btn.textContent = 'Sending…';
+      setNote('Sending…');
+      try {
+        var res = await fetch('/api/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type: 'contact', title: title, body: body, replyTo: email, hp: hp })
+        });
+        var data = {};
+        try { data = await res.json(); } catch (_) {}
+        if (data.ok) {
+          setNote('Sent. We’ll get back to you if you left an email.', 'ok');
+          document.getElementById('cMsg').value = '';
+        } else if (res.status === 429) {
+          setNote('Too many messages from this network. Email ' + CONTACT_EMAIL + ' instead.', 'error');
+        } else if (res.status === 503 || data.error === 'not_configured') {
+          window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+          setNote('Opened your mail app to ' + CONTACT_EMAIL + '.', 'ok');
+        } else {
+          setNote('Couldn’t send from the page. Email ' + CONTACT_EMAIL + ' instead.', 'error');
+        }
+      } catch (_) {
+        window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+        setNote('Opened your mail app to ' + CONTACT_EMAIL + '.', 'ok');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send message';
+      }
+    });
+  </script>
+</body>
+</html>

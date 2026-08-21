@@ -1,29 +1,54 @@
-# RunForge
+# Pace Kit (runforge)
 
-Self-contained running & training tools.
+Self-contained running & training tools at [pacekit.net](https://pacekit.net).
 
-Currently includes:
+- **[Heat Run Advisor](./heat-run-advisor/)** — Heat Index, WBGT, UV, pace & fuel
+- **[Race Finder](./race-finder/)** — upcoming races near a ZIP
+- **[Run Club Finder](./run-club-finder/)** — curated clubs; anyone can propose add / edit / remove
 
-- **[Heat Run Advisor](./heat-run-advisor/)** — Location-aware Heat Index + WBGT + UV + recommended pace calculator for outdoor running.
+Each tool is a static page. Cloudflare Pages deploys on every push to `main`.
 
-Designed for easy expansion. Each tool lives in its own folder and is a single self-contained HTML file.
+## Club proposals
+
+The directory is curated on purpose. Visitors submit add / edit / removal
+requests from the site. Those land as GitHub issues (labels `club-suggestion`,
+`club-correction`, `club-delete`). Nothing goes live until you merge it into
+`run-club-finder/clubs.json`.
+
+Set this Cloudflare Pages environment variable so the in-page form can file
+issues without a GitHub login:
+
+| Name | Value |
+|---|---|
+| `GITHUB_TOKEN` | Fine-grained PAT on `SlyEch0/runforge` with **Issues: Read and write**. Or a classic PAT with `public_repo`. |
+
+Without the token, the form falls back to `mailto:hello@pacekit.net`.
+
+## Email: hello@pacekit.net
+
+The site never publishes a personal inbox. Public address is **hello@pacekit.net**.
+
+Turn on **Cloudflare Email Routing** (free) so that address actually delivers:
+
+1. Cloudflare Dashboard → **pacekit.net** → **Email** → **Email Routing**
+2. Enable Email Routing (Cloudflare adds the MX records)
+3. Add a destination: your real inbox (Gmail / SBC / etc.) and verify it
+4. Create address `hello@pacekit.net` → forward to that destination
+
+Optional aliases: `clubs@pacekit.net` → same destination.
+
+Until routing is on, `hello@pacekit.net` will bounce. The contact form still
+works if `GITHUB_TOKEN` is set (messages become GitHub issues).
+
+## Favicon
+
+`favicon.svg` plus `favicon-32.png` / `apple-touch-icon.png` / `icon-192.png`.
+Linked from every HTML page.
 
 ## Deploy
 
-This repo is ready for **Cloudflare Pages**:
+Cloudflare Pages, connected to this repo:
 
-1. Connect the GitHub repo in Cloudflare Pages
-2. Build settings: leave empty (static site, no build command)
-3. Output directory: `/` (root)
-
-Every push to `main` will automatically deploy.
-
-## Adding a new tool
-
-1. Create a new folder, e.g. `my-new-tool/`
-2. Put an `index.html` inside it
-3. Link it from the root `index.html` hub page
-
-## License
-
-Personal / open use. Attribution appreciated but not required.
+1. Build command: empty (static)
+2. Output directory: `/`
+3. Functions in `functions/` are picked up automatically (Race Finder proxy, `/api/suggest`)

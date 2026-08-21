@@ -3,6 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
+  <link rel="manifest" href="/site.webmanifest" />
+  <meta name="theme-color" content="#0a0f1a" />
   <title>Run Club Finder — Pace Kit</title>
   <meta name="description" content="Find local run clubs near you. Filter by distance, day, and vibe. Suggest or update clubs in the directory." />
   <script src="https://cdn.tailwindcss.com"></script>
@@ -24,6 +29,8 @@
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     #clubModal:not(.hidden) { display: flex; }
     #placeSuggestBox:not(.hidden) { display: block; }
+    .hp-field { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+    button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
   </style>
 </head>
 <body class="bg-night-950 text-slate-100 min-h-screen">
@@ -43,6 +50,7 @@
       </nav>
       <div class="mt-auto pt-6 border-t border-slate-800/80 space-y-1 text-xs text-slate-500">
         <a href="../about.html" class="block px-3 py-1.5 hover:text-slate-300 transition">About</a>
+        <a href="../contact.html" class="block px-3 py-1.5 hover:text-slate-300 transition">Contact</a>
         <a href="../privacy.html" class="block px-3 py-1.5 hover:text-slate-300 transition">Privacy</a>
         <a href="https://github.com/SlyEch0/runforge" class="block px-3 py-1.5 hover:text-slate-300 transition">GitHub</a>
       </div>
@@ -110,11 +118,12 @@
       <div id="results" class="space-y-3"></div>
 
       <div class="mt-10 bg-slate-900/50 border border-slate-800 rounded-2xl p-5">
-        <h2 class="text-base font-semibold text-slate-100">Missing a club?</h2>
+        <h2 class="text-base font-semibold text-slate-100">Add a club</h2>
         <p class="mt-1.5 text-sm text-slate-400 leading-relaxed">
-          Suggest a club and we’ll review it for the directory.
+          Anyone can propose a club. We review it before it goes live — keeps the list free of spam and stale listings.
         </p>
         <form id="suggestForm" class="mt-4 space-y-3" onsubmit="return false;">
+          <input id="hpField" class="hp-field" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label class="block text-xs font-medium text-slate-500 mb-1.5">Club name</label>
@@ -139,15 +148,13 @@
             <label class="block text-xs font-medium text-slate-500 mb-1.5">Notes</label>
             <textarea id="sNotes" rows="2" placeholder="Meetup spot, vibe, free/paid…" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40"></textarea>
           </div>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <button type="button" id="btnEmailSuggest" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Email suggestion</button>
-            <button type="button" id="btnGithubSuggest" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Open on GitHub</button>
+          <div>
+            <label class="block text-xs font-medium text-slate-500 mb-1.5">Your email <span class="text-slate-600 font-normal">(optional, if you want a reply)</span></label>
+            <input id="sReplyTo" type="email" placeholder="you@example.com" class="w-full bg-night-950 border border-slate-700 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-cyan-500/40" />
           </div>
+          <button type="button" id="btnSubmitSuggest" class="w-full bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Submit for review</button>
+          <p id="suggestStatus" class="text-sm text-slate-500 leading-relaxed">No account needed. We usually add verified clubs within a few days.</p>
         </form>
-        <p class="mt-3 text-[11px] text-slate-500 leading-relaxed">
-          <strong class="text-slate-400">Email</strong> opens your mail app (no account needed).
-          <strong class="text-slate-400">GitHub</strong> needs a free GitHub login to post the issue.
-        </p>
       </div>
 
       <p class="text-xs text-slate-600 mt-8 text-center">
@@ -165,13 +172,18 @@
         <button type="button" onclick="closeClubModal()" class="shrink-0 w-9 h-9 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 transition" aria-label="Close">✕</button>
       </div>
       <div id="modalBody" class="px-5 py-4 space-y-4"></div>
-      <div class="px-5 pb-5 pt-1 space-y-2 border-t border-slate-800">
-        <p class="text-[11px] text-slate-500">Know something we don’t? Suggest a fix — we’ll review before updating the directory.</p>
+      <div class="px-5 pb-5 pt-1 space-y-3 border-t border-slate-800">
+        <p class="text-[11px] text-slate-500">See something wrong? Request an edit or a removal — we review before the directory changes.</p>
         <div class="flex flex-col sm:flex-row gap-2">
-          <button type="button" id="btnSuggestUpdate" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Suggest update</button>
-          <button type="button" id="btnReportIssue" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Report issue</button>
+          <button type="button" id="btnSuggestUpdate" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Edit details</button>
+          <button type="button" id="btnReportIssue" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Request removal</button>
         </div>
-        <p class="text-[10px] text-slate-600">Opens GitHub (login required) with the listing pre-filled.</p>
+        <div id="proposalBox" class="hidden space-y-3 pt-1">
+          <h3 id="proposalHeading" class="text-sm font-semibold text-slate-100"></h3>
+          <div id="proposalFields" class="space-y-3"></div>
+          <button type="button" id="btnSendProposal" class="w-full bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Send request</button>
+          <p id="proposalStatus" class="text-sm text-slate-500"></p>
+        </div>
       </div>
     </div>
   </div>
