@@ -117,11 +117,9 @@
           document.getElementById('cMsg').value = '';
         } else if (res.status === 429) {
           setNote('Too many messages from this network. Email ' + CONTACT_EMAIL + ' instead.', 'error');
-        } else if (res.status === 503 || data.error === 'not_configured') {
+        } else {
           window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
           setNote('Opened your mail app to ' + CONTACT_EMAIL + '.', 'ok');
-        } else {
-          setNote('Couldn’t send from the page. Email ' + CONTACT_EMAIL + ' instead.', 'error');
         }
       } catch (_) {
         window.location.href = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);

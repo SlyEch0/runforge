@@ -115,13 +115,9 @@ async function submitProposal(opts) {
       setNote(statusId, 'Too many requests from this network. Try again in a bit, or email ' + CONTACT_EMAIL + '.', 'error');
       return false;
     }
-    if (res.status === 503 || data.error === 'not_configured') {
-      openMailto(opts.title, opts.body);
-      setNote(statusId, 'Opened your mail app to ' + CONTACT_EMAIL + '. If nothing opened, email that address directly.', 'ok');
-      return true;
-    }
-    setNote(statusId, 'Couldn’t send. Email ' + CONTACT_EMAIL + ' and we’ll take it from there.', 'error');
-    return false;
+    openMailto(opts.title, opts.body);
+    setNote(statusId, 'Opened your mail app to ' + CONTACT_EMAIL + '. If nothing opened, email that address directly.', 'ok');
+    return true;
   } catch (_) {
     openMailto(opts.title, opts.body);
     setNote(statusId, 'Opened your mail app to ' + CONTACT_EMAIL + ' as a backup.', 'ok');
