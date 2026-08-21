@@ -37,12 +37,9 @@ async function geocodeZip(zip) {
 }
 
 function escapeHtml(s) {
-  return String(s || '')
-    .replace(/&/g, '&')
-    .replace(/</g, '<')
-    .replace(/>/g, '>')
-    .replace(/"/g, '"')
-    .replace(/'/g, '&#39;');
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
 }
 
 function distLabel(distMi) {
@@ -168,13 +165,12 @@ function suggestUpdateForActive() {
     '#### Proposed changes',
     '<!-- Tell us what is wrong or outdated. Edit the fields below. -->',
     '',
-    '- Days:
-- Vibe:
-- Cost:
-- Website / social:
-- Meetup location / time:
-- Other notes:
-',
+    '- Days:',
+    '- Vibe:',
+    '- Cost:',
+    '- Website / social:',
+    '- Meetup location / time:',
+    '- Other notes:',
     '',
     '_Submitted via Pace Kit Run Club Finder modal_'
   ].join('\n');
@@ -193,7 +189,7 @@ function reportIssueForActive() {
     '#### Listing',
     clubSnapshot(c),
     '',
-    '#### What’s wrong?',
+    '#### What is wrong?',
     '<!-- e.g. club no longer exists, wrong location, spam, unsafe, duplicate -->',
     '',
     '',
@@ -231,7 +227,7 @@ async function searchClubs() {
 
     let list = CLUBS.map(c => {
       const dist = (c.lat != null && c.lon != null) ? haversineMi(ORIGIN, { lat: c.lat, lon: c.lon }) : null;
-      return { ...c, _dist: dist };
+      return Object.assign({}, c, { _dist: dist });
     });
 
     list = list.filter(c => c._dist == null || c._dist <= radius);
@@ -239,18 +235,17 @@ async function searchClubs() {
       list = list.filter(c => !c.days || !c.days.length || c.days.includes(day));
     }
     if (vibe !== 'any') {
-      list = list.filter(c => (c.vibe || []).some(v => v === vibe || v.includes(vibe)));
+      list = list.filter(c => (c.vibe || []).some(v => v === vibe || v.indexOf(vibe) >= 0));
     }
-    list.sort((a, b) => (a._dist ?? 999) - (b._dist ?? 999));
+    list.sort(function (a, b) { return (a._dist != null ? a._dist : 999) - (b._dist != null ? b._dist : 999); });
 
     if (!list.length) {
       setStatus('No clubs matched. Try a larger radius or clear Day/Vibe filters.', true);
       return;
     }
 
-    // Keep full objects for modal lookup
     window.__lastClubList = list;
-    document.getElementById('results').innerHTML = list.map(c => clubCard(c, c._dist)).join('');
+    document.getElementById('results').innerHTML = list.map(function (c) { return clubCard(c, c._dist); }).join('');
     setStatus(list.length + ' club' + (list.length === 1 ? '' : 's') + ' within ' + radius + ' mi' + (zip ? ' of ' + zip : '') + ' · tap a card for details');
   } catch (err) {
     console.error(err);
@@ -291,16 +286,15 @@ function submitClub(e) {
   return false;
 }
 
-// Card click → modal
-document.getElementById('results').addEventListener('click', (e) => {
+document.getElementById('results').addEventListener('click', function (e) {
   const card = e.target.closest('.club-card');
   if (!card) return;
   const id = card.getAttribute('data-club-id');
   const list = window.__lastClubList || CLUBS;
-  const club = list.find(c => c.id === id) || CLUBS.find(c => c.id === id);
+  const club = list.find(function (c) { return c.id === id; }) || CLUBS.find(function (c) { return c.id === id; });
   if (club) openClubModal(club);
 });
-document.getElementById('results').addEventListener('keydown', (e) => {
+document.getElementById('results').addEventListener('keydown', function (e) {
   if (e.key !== 'Enter' && e.key !== ' ') return;
   const card = e.target.closest('.club-card');
   if (!card) return;
@@ -311,14 +305,14 @@ document.getElementById('results').addEventListener('keydown', (e) => {
 document.getElementById('btnSuggestUpdate').addEventListener('click', suggestUpdateForActive);
 document.getElementById('btnReportIssue').addEventListener('click', reportIssueForActive);
 
-document.addEventListener('keydown', (e) => {
+document.addEventListener('keydown', function (e) {
   if (e.key === 'Escape') closeClubModal();
 });
 
-['sName', 'sCity', 'sWebsite', 'sDays', 'sNotes'].forEach(id => {
+['sName', 'sCity', 'sWebsite', 'sDays', 'sNotes'].forEach(function (id) {
   const el = document.getElementById(id);
   if (!el) return;
-  el.addEventListener('input', () => {
+  el.addEventListener('input', function () {
     const name = document.getElementById('sName').value.trim() || 'Club';
     const city = document.getElementById('sCity').value.trim() || '';
     const title = 'Club suggestion: ' + name + (city ? ' (' + city + ')' : '');
@@ -334,4 +328,4 @@ document.addEventListener('keydown', (e) => {
   });
 });
 
-loadClubs().then(() => searchClubs()).catch(err => setStatus(err.message, true));
+loadClubs().then(function () { return searchClubs(); }).catch(function (err) { setStatus(err.message, true); });
