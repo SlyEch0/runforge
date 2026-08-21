@@ -1,6 +1,10 @@
-// Run Club Finder — Pace Kit (curated Houston-metro directory)
+// Run Club Finder — Pace Kit
+const GH_ISSUES = 'https://github.com/SlyEch0/runforge/issues/new';
+const CONTACT_EMAIL = 'ctr90@sbcglobal.net';
+
 let CLUBS = [];
-let ORIGIN = { lat: 29.5822, lon: -95.7607 }; // Richmond / 77407 approx
+let ORIGIN = { lat: 29.5822, lon: -95.7607 }; // default origin near 77407
+let ACTIVE_CLUB = null;
 
 function setStatus(msg, isError) {
   const el = document.getElementById('status');
@@ -41,37 +45,161 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;');
 }
 
+function distLabel(distMi) {
+  if (distMi == null || !isFinite(distMi)) return '';
+  return (distMi < 10 ? distMi.toFixed(1) : Math.round(distMi)) + ' mi';
+}
+
+function openGitHubIssue(title, body, labels) {
+  let url = GH_ISSUES + '?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+  if (labels && labels.length) url += '&labels=' + encodeURIComponent(labels.join(','));
+  window.open(url, '_blank', 'noopener');
+}
+
+function clubSnapshot(c) {
+  return [
+    '**Club id:** ' + (c.id || '(none)'),
+    '**Name:** ' + (c.name || ''),
+    '**City / state:** ' + [c.city, c.state].filter(Boolean).join(', '),
+    '**ZIP:** ' + (c.zip || '(none)'),
+    '**Days:** ' + ((c.days && c.days.length) ? c.days.join(', ') : '(none listed)'),
+    '**Vibe:** ' + ((c.vibe && c.vibe.length) ? c.vibe.join(', ') : '(none)'),
+    '**Cost:** ' + (c.cost || '(none)'),
+    '**Website:** ' + (c.website || '(none)'),
+    '**Instagram:** ' + (c.instagram || '(none)'),
+    '**Meetup:** ' + (c.meetup || '(none)'),
+    '**Strava:** ' + (c.strava || '(none)'),
+    '**Blurb:** ' + (c.blurb || '(none)')
+  ].join('\n');
+}
+
 function clubCard(c, distMi) {
   const days = (c.days && c.days.length) ? c.days.join(' · ') : 'Schedule varies';
   const vibes = (c.vibe || []).slice(0, 4).map(v =>
     '<span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">' + escapeHtml(v) + '</span>'
   ).join(' ');
-  const links = [];
-  if (c.website) links.push('<a href="' + escapeHtml(c.website) + '" target="_blank" rel="noopener" class="text-sm font-medium text-cyan-400 hover:text-cyan-300">Website →</a>');
-  if (c.instagram) links.push('<a href="' + escapeHtml(c.instagram) + '" target="_blank" rel="noopener" class="text-sm text-slate-400 hover:text-slate-200">Instagram</a>');
-  if (c.meetup) links.push('<a href="' + escapeHtml(c.meetup) + '" target="_blank" rel="noopener" class="text-sm text-slate-400 hover:text-slate-200">Meetup</a>');
-  if (c.strava) links.push('<a href="' + escapeHtml(c.strava) + '" target="_blank" rel="noopener" class="text-sm text-slate-400 hover:text-slate-200">Strava</a>');
+  const d = distLabel(distMi);
+  const idAttr = escapeHtml(c.id || '');
 
-  const distLabel = distMi != null && isFinite(distMi)
-    ? (distMi < 10 ? distMi.toFixed(1) : Math.round(distMi)) + ' mi'
-    : '';
-
-  return '<article class="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 fade-in space-y-2.5">' +
+  return '<article class="club-card bg-slate-900/70 border border-slate-800 hover:border-cyan-500/40 rounded-2xl p-4 fade-in space-y-2.5 cursor-pointer transition" data-club-id="' + idAttr + '" role="button" tabindex="0">' +
     '<div class="flex items-start justify-between gap-3">' +
       '<div class="min-w-0">' +
         '<h2 class="text-base font-semibold text-slate-100 leading-snug">' + escapeHtml(c.name) + '</h2>' +
         '<div class="mt-1 text-xs text-slate-400">' + escapeHtml([c.city, c.state].filter(Boolean).join(', ')) +
           (c.zip ? ' ' + escapeHtml(c.zip) : '') +
-          (distLabel ? ' · ' + distLabel : '') +
+          (d ? ' · ' + d : '') +
         '</div>' +
       '</div>' +
       (c.cost ? '<span class="shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">' + escapeHtml(c.cost) + '</span>' : '') +
     '</div>' +
     '<div class="text-sm text-slate-300">' + escapeHtml(days) + '</div>' +
     (vibes ? '<div class="flex flex-wrap gap-1.5">' + vibes + '</div>' : '') +
-    (c.blurb ? '<p class="text-xs text-slate-500 leading-relaxed">' + escapeHtml(c.blurb) + '</p>' : '') +
-    (links.length ? '<div class="flex flex-wrap items-center gap-3 pt-1">' + links.join('') + '</div>' : '') +
+    (c.blurb ? '<p class="text-xs text-slate-500 leading-relaxed line-clamp-2">' + escapeHtml(c.blurb) + '</p>' : '') +
+    '<div class="text-[11px] text-cyan-400/80 pt-0.5">Tap for details →</div>' +
   '</article>';
+}
+
+function openClubModal(c) {
+  ACTIVE_CLUB = c;
+  const modal = document.getElementById('clubModal');
+  document.getElementById('modalTitle').textContent = c.name || 'Club';
+
+  const days = (c.days && c.days.length) ? c.days.join(' · ') : 'Schedule varies / not listed';
+  const vibes = (c.vibe || []).map(v =>
+    '<span class="text-[11px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">' + escapeHtml(v) + '</span>'
+  ).join(' ');
+  const d = distLabel(c._dist);
+  const loc = [c.city, c.state].filter(Boolean).join(', ') + (c.zip ? ' ' + c.zip : '');
+
+  const links = [];
+  if (c.website) links.push('<a href="' + escapeHtml(c.website) + '" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-sm font-medium text-cyan-400 hover:text-cyan-300">Website <span aria-hidden="true">→</span></a>');
+  if (c.instagram) links.push('<a href="' + escapeHtml(c.instagram) + '" target="_blank" rel="noopener" class="text-sm text-slate-300 hover:text-white">Instagram</a>');
+  if (c.meetup) links.push('<a href="' + escapeHtml(c.meetup) + '" target="_blank" rel="noopener" class="text-sm text-slate-300 hover:text-white">Meetup</a>');
+  if (c.strava) links.push('<a href="' + escapeHtml(c.strava) + '" target="_blank" rel="noopener" class="text-sm text-slate-300 hover:text-white">Strava</a>');
+
+  const rows = [
+    ['Location', loc || '—'],
+    ['Distance', d || '—'],
+    ['Typical days', days],
+    ['Cost', c.cost || '—'],
+    ['Coordinates', (c.lat != null && c.lon != null) ? (c.lat.toFixed(4) + ', ' + c.lon.toFixed(4)) : '—']
+  ];
+
+  let html = '<dl class="space-y-3">';
+  for (const [k, v] of rows) {
+    html += '<div><dt class="text-[10px] uppercase tracking-wider text-slate-500">' + escapeHtml(k) + '</dt>' +
+      '<dd class="mt-0.5 text-sm text-slate-200">' + escapeHtml(v) + '</dd></div>';
+  }
+  html += '</dl>';
+
+  if (vibes) {
+    html += '<div><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1.5">Vibe</div><div class="flex flex-wrap gap-1.5">' + vibes + '</div></div>';
+  }
+  if (c.blurb) {
+    html += '<div><div class="text-[10px] uppercase tracking-wider text-slate-500 mb-1">About</div><p class="text-sm text-slate-300 leading-relaxed">' + escapeHtml(c.blurb) + '</p></div>';
+  }
+  if (links.length) {
+    html += '<div class="flex flex-wrap items-center gap-4 pt-1">' + links.join('') + '</div>';
+  }
+
+  document.getElementById('modalBody').innerHTML = html;
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeClubModal() {
+  document.getElementById('clubModal').classList.add('hidden');
+  document.body.style.overflow = '';
+  ACTIVE_CLUB = null;
+}
+
+function suggestUpdateForActive() {
+  if (!ACTIVE_CLUB) return;
+  const c = ACTIVE_CLUB;
+  const title = 'Club update: ' + (c.name || c.id) + (c.city ? ' (' + c.city + ')' : '');
+  const body = [
+    '### Club update suggestion',
+    '',
+    '**Type:** club-correction',
+    '',
+    '#### Current listing',
+    clubSnapshot(c),
+    '',
+    '#### Proposed changes',
+    '<!-- Tell us what is wrong or outdated. Edit the fields below. -->',
+    '',
+    '- Days:
+- Vibe:
+- Cost:
+- Website / social:
+- Meetup location / time:
+- Other notes:
+',
+    '',
+    '_Submitted via Pace Kit Run Club Finder modal_'
+  ].join('\n');
+  openGitHubIssue(title, body, ['club-correction']);
+}
+
+function reportIssueForActive() {
+  if (!ACTIVE_CLUB) return;
+  const c = ACTIVE_CLUB;
+  const title = 'Club issue: ' + (c.name || c.id);
+  const body = [
+    '### Report an issue with this club listing',
+    '',
+    '**Type:** club-issue',
+    '',
+    '#### Listing',
+    clubSnapshot(c),
+    '',
+    '#### What’s wrong?',
+    '<!-- e.g. club no longer exists, wrong location, spam, unsafe, duplicate -->',
+    '',
+    '',
+    '_Submitted via Pace Kit Run Club Finder modal_'
+  ].join('\n');
+  openGitHubIssue(title, body, ['club-issue']);
 }
 
 async function loadClubs() {
@@ -120,8 +248,10 @@ async function searchClubs() {
       return;
     }
 
+    // Keep full objects for modal lookup
+    window.__lastClubList = list;
     document.getElementById('results').innerHTML = list.map(c => clubCard(c, c._dist)).join('');
-    setStatus(list.length + ' club' + (list.length === 1 ? '' : 's') + ' within ' + radius + ' mi' + (zip ? ' of ' + zip : ''));
+    setStatus(list.length + ' club' + (list.length === 1 ? '' : 's') + ' within ' + radius + ' mi' + (zip ? ' of ' + zip : '') + ' · tap a card for details');
   } catch (err) {
     console.error(err);
     setStatus('Failed to load clubs: ' + (err.message || 'error'), true);
@@ -142,6 +272,8 @@ function submitClub(e) {
   const body = [
     '### Club suggestion',
     '',
+    '**Type:** club-suggestion',
+    '',
     '**Name:** ' + name,
     '**City:** ' + city,
     '**Website / social:** ' + (website || '(none)'),
@@ -152,16 +284,41 @@ function submitClub(e) {
   ].join('\n');
 
   const title = 'Club suggestion: ' + name + ' (' + city + ')';
-  const url = 'https://github.com/SlyEch0/runforge/issues/new?title=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
-  window.open(url, '_blank', 'noopener');
+  openGitHubIssue(title, body, ['club-suggestion']);
 
-  const mail = 'mailto:ctr90@sbcglobal.net?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+  const mail = 'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
   document.getElementById('mailtoLink').href = mail;
   return false;
 }
 
+// Card click → modal
+document.getElementById('results').addEventListener('click', (e) => {
+  const card = e.target.closest('.club-card');
+  if (!card) return;
+  const id = card.getAttribute('data-club-id');
+  const list = window.__lastClubList || CLUBS;
+  const club = list.find(c => c.id === id) || CLUBS.find(c => c.id === id);
+  if (club) openClubModal(club);
+});
+document.getElementById('results').addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const card = e.target.closest('.club-card');
+  if (!card) return;
+  e.preventDefault();
+  card.click();
+});
+
+document.getElementById('btnSuggestUpdate').addEventListener('click', suggestUpdateForActive);
+document.getElementById('btnReportIssue').addEventListener('click', reportIssueForActive);
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeClubModal();
+});
+
 ['sName', 'sCity', 'sWebsite', 'sDays', 'sNotes'].forEach(id => {
-  document.getElementById(id).addEventListener('input', () => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('input', () => {
     const name = document.getElementById('sName').value.trim() || 'Club';
     const city = document.getElementById('sCity').value.trim() || '';
     const title = 'Club suggestion: ' + name + (city ? ' (' + city + ')' : '');
@@ -173,7 +330,7 @@ function submitClub(e) {
       'Notes: ' + document.getElementById('sNotes').value
     ].join('\n');
     document.getElementById('mailtoLink').href =
-      'mailto:ctr90@sbcglobal.net?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
+      'mailto:' + CONTACT_EMAIL + '?subject=' + encodeURIComponent(title) + '&body=' + encodeURIComponent(body);
   });
 });
 
