@@ -22,6 +22,7 @@
     body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     .fade-in { animation: fadeIn 0.25s ease-out; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    #clubModal:not(.hidden) { display: flex; }
   </style>
 </head>
 <body class="bg-night-950 text-slate-100 min-h-screen">
@@ -133,6 +134,26 @@
       </p>
     </main>
   </div>
+
+  <!-- Club detail modal -->
+  <div id="clubModal" class="hidden fixed inset-0 z-50 items-end sm:items-center justify-center p-0 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="absolute inset-0 bg-black/70" onclick="closeClubModal()"></div>
+    <div class="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto bg-slate-900 border border-slate-700 sm:rounded-2xl rounded-t-2xl shadow-2xl">
+      <div class="sticky top-0 z-10 flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-800 bg-slate-900/95 backdrop-blur">
+        <h2 id="modalTitle" class="text-lg font-semibold text-slate-50 truncate pr-2">Club</h2>
+        <button type="button" onclick="closeClubModal()" class="shrink-0 w-9 h-9 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-slate-500 transition" aria-label="Close">✕</button>
+      </div>
+      <div id="modalBody" class="px-5 py-4 space-y-4"></div>
+      <div class="px-5 pb-5 pt-1 space-y-2 border-t border-slate-800">
+        <p class="text-[11px] text-slate-500">Know something we don’t? Suggest a fix — we’ll review before updating the directory.</p>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button type="button" id="btnSuggestUpdate" class="flex-1 bg-cyan-500 hover:bg-cyan-400 text-night-950 font-semibold py-2.5 rounded-lg text-sm transition">Suggest update</button>
+          <button type="button" id="btnReportIssue" class="flex-1 border border-slate-600 hover:border-slate-400 text-slate-200 py-2.5 rounded-lg text-sm transition">Report issue</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="./app.js"></script>
 </body>
 </html>
